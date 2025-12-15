@@ -1,29 +1,37 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+import yfinance as yf
 
 app = Flask(__name__)
-
-# Allow Vue dev server to talk to Flask
 CORS(app)
 
-@app.route("/api/records")
-def api_records():
-    # Dumb hard-coded JSON just to prove the link works
-    return jsonify([
-        {"id": 1, "field1": "Hello from Flask", "field2": "It works"},
-        {"id": 2, "field1": "Second record", "field2": "Also works"},
-    ])
-
-@app.route("/api/stocks/<ticker>")
+@app.route("/stocks/<ticker>")
 def api_stocks(ticker):
-    # Dummy stock data for demonstration purposes
-    stock_data = {
-        "AAPL": {"price": 150.00, "change": "+1.5%"},
-        "GOOGL": {"price": 2800.00, "change": "-0.5%"},
-        "MSFT": {"price": 300.00, "change": "+0.8%"},
-    }
-    data = stock_data.get(ticker.upper(), {"error": "Ticker not found"})
-    return jsonify(data)
+    stock = yf.Ticker(ticker)
+    fast = stock.fast_info
+
+    try:
+        info = stock.info             # ← name, sector, industry, full details
+    except:
+        info = {}                     # fallback if API rate limited
+
+    fast = stock.fast_info            # ← live pricing metrics
+
+    return jsonify({
+        "ticker": ticker.upper(),
+        "name": info.get("longName") or info.get("shortName") or "Name Not Available",
+        "price": round(fast.get("lastPrice"), 2),
+        "open": round(fast.get("open"), 2),
+        "previous_close": round(fast.get("previousClose"), 2),
+        "day_high": round(fast.get("dayHigh"), 2),
+        "day_low": round(fast.get("dayLow"), 2),
+        "fifty_day_avg": round(fast.get("fiftyDayAverage"), 2),
+        "two_hundred_day_avg": round(fast.get("twoHundredDayAverage"), 2),
+        "year_high": round(fast.get("yearHigh"), 2),
+        "year_low": round(fast.get("yearLow"), 2),
+        "volume": fast.get("lastVolume"),
+        "market_cap": fast.get("marketCap")
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
